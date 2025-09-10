@@ -6,7 +6,6 @@ import com.megaorders.models.Product;
 import com.megaorders.models.ProductTotalRevenue;
 import com.megaorders.repositories.OrderRepository;
 import com.megaorders.repositories.Product30DaysRevenueRepository;
-import com.megaorders.repositories.ProductRepository;
 import com.megaorders.repositories.ProductTotalRevenueRepository;
 import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +16,6 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @Transactional

@@ -60,4 +60,9 @@ public class ProductSupplier {
         item.setProductSupplier(this);
         return this.items.add(item);
     }
+
+    public Boolean removeItem(Item item) {
+        item.setProductSupplier(null);
+        return this.items.remove(item);
+    }
 }
