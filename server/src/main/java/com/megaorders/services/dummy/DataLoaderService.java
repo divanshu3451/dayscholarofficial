@@ -4,6 +4,7 @@ import com.megaorders.dtos.dummy.*;
 import com.megaorders.models.*;
 import com.megaorders.models.embeddables.DeliveryInfo;
 import com.megaorders.models.embeddables.ReturnInfo;
+import com.megaorders.models.enums.DeliveryStatus;
 import com.megaorders.repositories.*;
 import com.megaorders.utils.FieldUtils;
 import lombok.NoArgsConstructor;
@@ -38,9 +39,10 @@ public class DataLoaderService implements CommandLineRunner {
     private final PaymentDetailRepository paymentDetailRepository;
     private final OrderRepository orderRepository;
     private final OrderProductRepository orderProductRepository;
+    private final ProductTotalRevenueRepository productTotalRevenueRepository;
 
     @Autowired
-    public DataLoaderService(UserRepository userRepository, PasswordEncoder passwordEncoder, ModelMapper modelMapper, VendorRepository vendorRepository, SupplierRepository supplierRepository, ProductCategoryRepository productCategoryRepository, ProductRepository productRepository, ProductSupplierRepository productSupplierRepository, ItemRepository itemRepository, PaymentDetailRepository paymentDetailRepository, OrderRepository orderRepository, OrderProductRepository orderProductRepository) {
+    public DataLoaderService(UserRepository userRepository, PasswordEncoder passwordEncoder, ModelMapper modelMapper, VendorRepository vendorRepository, SupplierRepository supplierRepository, ProductCategoryRepository productCategoryRepository, ProductRepository productRepository, ProductSupplierRepository productSupplierRepository, ItemRepository itemRepository, PaymentDetailRepository paymentDetailRepository, OrderRepository orderRepository, OrderProductRepository orderProductRepository, ProductTotalRevenueRepository productTotalRevenueRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.modelMapper = modelMapper;
@@ -53,21 +55,23 @@ public class DataLoaderService implements CommandLineRunner {
         this.paymentDetailRepository = paymentDetailRepository;
         this.orderRepository = orderRepository;
         this.orderProductRepository = orderProductRepository;
+        this.productTotalRevenueRepository = productTotalRevenueRepository;
     }
 
     private static Map<String, String> getStringStringMap() {
         Map<String, String> csvMethodMap = new LinkedHashMap<>(); // Maintain insertion order
-        csvMethodMap.put("data/users.csv", "loadUsersFromCsv");
-        csvMethodMap.put("data/vendors.csv", "loadVendorsFromCsv");
-        csvMethodMap.put("data/suppliers.csv", "loadSuppliersFromCsv");
-        csvMethodMap.put("data/product_categories.csv", "loadProductCategoriesFromCsv");
-        csvMethodMap.put("data/products.csv", "loadProductsFromCsv");
-        csvMethodMap.put("data/product_suppliers.csv", "loadProductSuppliersFromCsv");
-        csvMethodMap.put("data/items.csv", "loadItemsFromCsv");
-        csvMethodMap.put("data/payment_details.csv", "loadPaymentDetailsFromCsv");
-        csvMethodMap.put("data/orders.csv", "loadOrdersFromCsv");
-        csvMethodMap.put("data/order_products.csv", "loadOrderProductsFromCsv");
-        csvMethodMap.put("data/item_for_orders.csv", "updateItemsAsPerOrdersFromCsv");
+//        csvMethodMap.put("data/users.csv", "loadUsersFromCsv");
+//        csvMethodMap.put("data/vendors.csv", "loadVendorsFromCsv");
+//        csvMethodMap.put("data/suppliers.csv", "loadSuppliersFromCsv");
+//        csvMethodMap.put("data/product_categories.csv", "loadProductCategoriesFromCsv");
+//        csvMethodMap.put("data/products.csv", "loadProductsFromCsv");
+//        csvMethodMap.put("data/product_suppliers.csv", "loadProductSuppliersFromCsv");
+//        csvMethodMap.put("data/items.csv", "loadItemsFromCsv");
+//        csvMethodMap.put("data/payment_details.csv", "loadPaymentDetailsFromCsv");
+//        csvMethodMap.put("data/orders.csv", "loadOrdersFromCsv");
+//        csvMethodMap.put("data/order_products.csv", "loadOrderProductsFromCsv");
+//        csvMethodMap.put("data/item_for_orders.csv", "updateItemsAsPerOrdersFromCsv");
+//        csvMethodMap.put("some log", "loadProductTotalRevenue");
         return csvMethodMap;
     }
 
@@ -88,9 +92,7 @@ public class DataLoaderService implements CommandLineRunner {
                 log.info("Dummy {} data loading completed.", methodName);
             } catch (InvocationTargetException ite) {
                 Throwable cause = ite.getCause();
-                String error = (cause instanceof IOException io) ?
-                        ("IO error loading {}: {} " + methodName + "\n" + io.getMessage() + "\n" + io) :
-                        ("Error invoking {}: {} " + methodName + "\n" + cause.getMessage() + "\n" + cause);
+                String error = (cause instanceof IOException io) ? ("IO error loading {}: {} " + methodName + "\n" + io.getMessage() + "\n" + io) : ("Error invoking {}: {} " + methodName + "\n" + cause.getMessage() + "\n" + cause);
                 log.error(error);
             } catch (Exception e) {
                 log.error("Error loading {} from CSV: {}", methodName, e.getMessage(), e);
@@ -106,11 +108,11 @@ public class DataLoaderService implements CommandLineRunner {
                 log.info("User already exists, skipping: {}", dto.getEmail());
                 continue;
             }
+
             User user = modelMapper.map(dto, User.class);
             user.setPassword(passwordEncoder.encode(dto.getPassword()));
             userRepository.save(user);
             log.info("Inserted new user: {}", dto.getEmail());
-
         }
     }
 
@@ -272,16 +274,14 @@ public class DataLoaderService implements CommandLineRunner {
             // 3. Product must exist
             Optional<Product> productOpt = productRepository.findByNameAndCategory(dto.getProductName(), categoryOpt.get());
             if (productOpt.isEmpty()) {
-                log.warn("Product not found for item: {} - {} ({}) - {}",
-                        dto.getSerialNumber(), dto.getProductName(), dto.getCategoryName(), dto.getSupplierLicenseNumber());
+                log.warn("Product not found for item: {} - {} ({}) - {}", dto.getSerialNumber(), dto.getProductName(), dto.getCategoryName(), dto.getSupplierLicenseNumber());
                 continue;
             }
 
             // 4. Supplier must exist
             Optional<Supplier> supplierOpt = supplierRepository.findByLicenseNumber(dto.getSupplierLicenseNumber());
             if (supplierOpt.isEmpty()) {
-                log.warn("Supplier not found for item: {} - {} ({}) - {}",
-                        dto.getSerialNumber(), dto.getProductName(), dto.getCategoryName(), dto.getSupplierLicenseNumber());
+                log.warn("Supplier not found for item: {} - {} ({}) - {}", dto.getSerialNumber(), dto.getProductName(), dto.getCategoryName(), dto.getSupplierLicenseNumber());
                 continue;
             }
 
@@ -291,8 +291,7 @@ public class DataLoaderService implements CommandLineRunner {
             // 5. ProductSupplier link must exist
             Optional<ProductSupplier> productSupplierOpt = productSupplierRepository.findByProductAndSupplier(product, supplier);
             if (productSupplierOpt.isEmpty()) {
-                log.warn("ProductSupplier not found for item: {} - {} ({}) - {}",
-                        dto.getSerialNumber(), dto.getProductName(), dto.getCategoryName(), dto.getSupplierLicenseNumber());
+                log.warn("ProductSupplier not found for item: {} - {} ({}) - {}", dto.getSerialNumber(), dto.getProductName(), dto.getCategoryName(), dto.getSupplierLicenseNumber());
                 continue;
             }
 
@@ -349,8 +348,7 @@ public class DataLoaderService implements CommandLineRunner {
 
             // 2. Build payment info + details
             PaymentInfo paymentInfo = modelMapper.map(dto, PaymentInfo.class);
-            Optional<PaymentDetail> paymentDetailOpt = DataLoaderServiceUtils
-                    .getPaymentDetailFromPaymentMode(paymentInfo, Optional.empty(), paymentDetailRepository);
+            Optional<PaymentDetail> paymentDetailOpt = DataLoaderServiceUtils.getPaymentDetailFromPaymentMode(paymentInfo, Optional.empty(), paymentDetailRepository);
             if (paymentDetailOpt.isEmpty()) {
                 log.warn("Payment detail not found/created for order: {}", dto.getTransactionId());
                 continue;
@@ -422,7 +420,6 @@ public class DataLoaderService implements CommandLineRunner {
                     orderProduct.addItem(item.get());
                 }
             }
-
             orderProductRepository.save(orderProduct);
         }
     }
@@ -487,6 +484,46 @@ public class DataLoaderService implements CommandLineRunner {
             foundOrderProduct.addItem(item);
             itemRepository.save(item);
             log.info("Updated item {} for transaction {}", serialFromCsv, transactionId);
+        }
+    }
+
+    private void loadProductTotalRevenue(String str) {
+        List<Product> products = productRepository.findAll();
+        for (Product product : products) {
+            if (productTotalRevenueRepository.findByProduct(product).isPresent()) {
+                log.info("ProductTotalRevenue already exists for product {}, skipping", product.getName());
+                continue;
+            }
+
+            List<OrderProduct> orderProducts = orderProductRepository.findByProduct(product);
+            Double productTotalRevenueAmt = 0.0;
+            Long productTotalCount = 0L;
+            for (OrderProduct orderProduct : orderProducts) {
+                productTotalCount += orderProduct.getQty();
+                productTotalRevenueAmt += orderProduct.getPrice();
+            }
+
+            long productReturnedCount = 0L;
+            List<Item> items = itemRepository.findByProduct(product);
+            for (Item item : items) {
+                if (item.getStatus() == DeliveryStatus.RETURN_PICKUP || item.getStatus() == DeliveryStatus.RETURN_ACCEPTED || item.getStatus() == DeliveryStatus.AMOUNT_REFUNDED) {
+                    productReturnedCount++;
+                }
+            }
+
+            if (productTotalCount == 0) {
+                continue;
+            }
+
+            ProductTotalRevenue productTotalRevenue = new ProductTotalRevenue();
+            productTotalRevenue.setVolumeSold(productTotalCount);
+            productTotalRevenue.setRevenue(productTotalRevenueAmt);
+            productTotalRevenue.setVolumeReturned(productReturnedCount);
+            productTotalRevenue.setVolumeReturnedDueToSupplierFault((long) Math.ceil(productReturnedCount * 0.95));
+            product.addProductTotalRevenue(productTotalRevenue);
+            productTotalRevenueRepository.save(productTotalRevenue);
+
+            log.info("Updated productTotalRevenue for product {}, skipping", product.getName());
         }
     }
 }
